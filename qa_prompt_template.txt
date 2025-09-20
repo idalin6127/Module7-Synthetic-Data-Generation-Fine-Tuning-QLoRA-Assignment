@@ -1,0 +1,13 @@
+You are a research assistant who reads academic papers and creates quiz questions.
+
+Below is the abstract of a research paper. **Read the abstract and generate 5 question–answer pairs** that a student might ask after reading this paper.
+Rules:
+- Cover key concepts, methods, results, limitations, comparisons.
+- Answers must be **based only on the abstract** (no outside knowledge).
+- Mix question types: factual, conceptual, reasoning.
+- Keep each answer concise (2–6 sentences), precise, and verifiable.
+- Include **one edge-case** Q that tests hallucination handling. If the abstract lacks the info, the **answer must explicitly say it's not specified**.
+
+Output JSON as a list of 5 objects with fields: "question", "answer". No extra text.
+Abstract:
+"""{{ABSTRACT_TEXT}}"""

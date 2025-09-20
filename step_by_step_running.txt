@@ -1,0 +1,50 @@
+cd C:\AI_Coop\Homework\Week7
+
+# 1) （首次或依赖变更时）创建/激活 venv + 安装依赖
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+python -m pip install --upgrade pip
+
+# 先装 CUDA 版 PyTorch
+pip install --index-url https://download.pytorch.org/whl/cu121 torch==2.5.1 torchvision==0.20.1 torchaudio==2.5.1
+
+# 再装精简依赖（requirements.txt 不包含 tts/xformers/torch）
+pip install -r requirements.txt --upgrade
+
+# 验证
+pip check
+python - << 'PY'
+import torch;print(torch.cuda.is_available(), torch.version.cuda, torch.__version__)
+PY
+
+# 2) 从 .env 读取 Key（因为不用启动器就不会自动加载）
+$env:OPENAI_API_KEY = (Get-Content .\.env | Select-String '^OPENAI_API_KEY=' | % { ($_ -split '=',2)[1].Trim() })
+
+# 3) 一键跑完整流程
+python .\main.py all --week4-meta "C:\AI_Coop\Homework\Week4\rag_arxiv_cscl_week4\data\meta.jsonl"
+
+
+或者按步骤：
+python .\main.py enrich --week4-meta "C:\AI_Coop\Homework\Week4\rag_arxiv_cscl_week4\data\meta.jsonl"
+python .\main.py topup
+python .\main.py qas     或python .\main.py qas --per-paper 3，可以将3改为5等其他数值
+python .\main.py jsonl
+python .\main.py train
+python .\main.py eval
+
+
+文件流（从输入到输出，一眼看懂）：
+Week4 meta.jsonl
+   │
+enrich  ──>  data/abstracts.json
+   │
+topup   ──>  data/topup_abstracts.json  ┐
+merge   ──>  data/abstracts_100.json    ┘（固定 100 篇）
+   │
+qas     ──>  data/papers_qas.json（每篇 ~5 组 Q&A）
+   │
+jsonl   ──>  data/synthetic_qa.jsonl（<|system|><|user|><|assistant|> 模板）
+   │
+train   ──>  llama3-7b-qlora-finetuned\（QLoRA 适配器/权重）
+   │
+eval    ──>  eval_raw_outputs.csv（基线 vs 微调 对比）

@@ -1,0 +1,9 @@
+# dotenv 文件
+.env
+*.env
+**/.env
+
+# Python venv 目录
+.venv/
+venv/
+env/
