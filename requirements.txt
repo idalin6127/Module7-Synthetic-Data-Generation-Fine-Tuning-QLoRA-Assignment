@@ -1,12 +1,28 @@
-# === Core for Week7 QLoRA fine-tune ===
-transformers>=4.41.0
-datasets>=2.20.0
-peft>=0.11.1
-bitsandbytes>=0.43.0
+# Core
+torch==2.5.1
+torchvision==0.20.1
+torchaudio==2.5.1
+
+# Transformers ecosystem
+transformers>=4.42.0
+datasets>=2.19.0
 accelerate>=0.31.0
-tqdm>=4.66.0
-pydantic>=2.0.0
-python-dotenv>=1.0.0
-PyYAML>=6.0.0
-sentencepiece>=0.2.0
-pandas>=2.2,<3
+peft>=0.11.1
+
+# Quantization / LoRA support
+bitsandbytes>=0.43.1
+
+# Unsloth (QLoRA wrapper)
+unsloth>=2024.5.0
+
+# Utilities
+tqdm
+numpy
+pandas
+scipy
+scikit-learn
+
+# Optional but recommended
+python-dotenv   # 读取 .env 中的 OPENAI_API_KEY
+pyyaml          # main.py 里加载 configs/week7.yaml 时用
+

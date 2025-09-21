@@ -1,9 +1,36 @@
-# dotenv 文件
-.env
-*.env
-**/.env
-
-# Python venv 目录
+cat > .gitignore <<'EOF'
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.egg-info/
 .venv/
-venv/
 env/
+venv/
+
+# IDE/Notebook
+.ipynb_checkpoints/
+.vscode/
+.idea/
+
+# Data / Artifacts
+models/
+outputs/
+checkpoints/
+*.ckpt
+*.pt
+*.bin
+*.safetensors
+
+# Logs / caches
+logs/
+wandb/
+cache/
+.huggingface/
+
+# Secrets
+.env
+*.key
+*.token
+EOF
