@@ -1,0 +1,11 @@
+question,winner
+What was the training objective for this week's dataset?,ft
+"When generating Q&A from abstracts, how to handle non-existent details?",ft
+Core differences between QLoRA and full fine-tuning?,ft
+Why is BF16 recommended on A100 GPUs?,ft
+Key points of the instruction-tuning data format?,ft
+Example of contradiction handling in academic Q&A.,ft
+Main techniques that make QLoRA memory-efficient.,ft
+How to evaluate pre- vs post-tuning?,ft
+Why enable gradient checkpointing?,tie
+Why include edge-case questions?,tie

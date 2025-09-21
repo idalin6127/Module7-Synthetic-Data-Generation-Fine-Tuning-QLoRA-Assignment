@@ -16,7 +16,6 @@ venv/
 
 # Data / Artifacts
 models/
-outputs/
 checkpoints/
 *.ckpt
 *.pt

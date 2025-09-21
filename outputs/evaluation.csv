@@ -1,0 +1,11 @@
+question,base_answer,ft_answer
+What was the training objective for this week's dataset?,Improve Q&A performance.,Optimize accurate academic Q&A by aligning the model to scholarly style using ~500 synthetic Q&A pairs.
+"When generating Q&A from abstracts, how to handle non-existent details?",Answer as best as we can.,Explicitly state the paper does not specify those details; avoid fabricating values.
+Core differences between QLoRA and full fine-tuning?,QLoRA is parameter-efficient; full FT updates all params.,Load base in 4-bit NF4 and train LoRA adapters; full FT updates all base weights and needs far more memory.
+Why is BF16 recommended on A100 GPUs?,BF16 is faster.,A100 has native BF16 support with wider dynamic range than FP16 for stable throughput and fewer overflow issues.
+Key points of the instruction-tuning data format?,We used a chat-like format.,"Single-turn chat: <|system|> instruction, <|user|> question, <|assistant|> answer — one 'text' per JSONL line."
+Example of contradiction handling in academic Q&A.,Answer carefully.,Include false-premise questions; the model should refuse/correct: “the paper does not report that value.”
+Main techniques that make QLoRA memory-efficient.,Use quantization and adapters.,4-bit NF4 quantization + LoRA adapters + paged optimizers + gradient checkpointing reduce VRAM use.
+How to evaluate pre- vs post-tuning?,Compare outputs before and after.,Use a fixed 10-question set; same decoding for base vs fine-tuned; compare side-by-side.
+Why enable gradient checkpointing?,To reduce memory.,Trades compute for memory by recomputing activations; enables larger batch/sequence length.
+Why include edge-case questions?,To improve robustness.,Teaches safe handling of unanswerable or misleading prompts; reduces hallucinations.
