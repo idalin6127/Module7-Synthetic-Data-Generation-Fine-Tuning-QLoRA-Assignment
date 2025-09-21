@@ -147,7 +147,6 @@ python quick_infer.py
 ### Results at a Glance
 
 ![Evaluation Outcomes](outputs/results_bar.png)
-<img width="1000" height="640" alt="results_bar" src="https://github.com/user-attachments/assets/71ebb36a-33ea-455f-a1c2-81d2cd182e30" />
 
 * Full comparison CSV: [`outputs/evaluation.csv`](outputs/evaluation.csv)
   
