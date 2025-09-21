@@ -60,7 +60,7 @@ def main():
 
     # 2) Tokenizer
     print("[INFO] Preparing tokenizer")
-    tokenizer = AutoTokenizer.from_pretrained(args.model, use_fast=False)
+    tokenizer = AutoTokenizer.from_pretrained(args.model, use_fast=True, trust_remote_code=True)
     tokenizer.padding_side = "right"
     tokenizer.truncation_side = "right"
     if tokenizer.pad_token_id is None and tokenizer.eos_token_id is not None:

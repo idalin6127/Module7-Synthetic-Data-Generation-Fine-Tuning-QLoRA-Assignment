@@ -69,7 +69,8 @@ def main():
     )
 
     print("[INFO] Preparing tokenizer")
-    tokenizer = AutoTokenizer.from_pretrained(args.model, use_fast=False)
+    tokenizer = AutoTokenizer.from_pretrained(args.model, use_fast=True, trust_remote_code=True)
+
 
     # Prefer FlashAttention2 if available (silently ignore if not present)
     try:
