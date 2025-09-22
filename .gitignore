@@ -21,6 +21,7 @@ checkpoints/
 *.pt
 *.bin
 *.safetensors
+*.mp4
 
 # Logs / caches
 logs/
