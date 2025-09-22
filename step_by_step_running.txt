@@ -1,50 +1,280 @@
-cd C:\AI_Coop\Homework\Week7
+Awesome—here’s a **from-scratch, error-resistant runbook** for your Week 7 project. I’m giving you two clean paths:
 
-# 1) （首次或依赖变更时）创建/激活 venv + 安装依赖
-python -m venv .venv
-.\.venv\Scripts\Activate.ps1
-python -m pip install --upgrade pip
+* **Path A (GPU / A100–friendly, recommended):** Zephyr-7B with 4-bit QLoRA
+* **Path B (Laptop / Low-VRAM or CPU):** TinyLlama-1.1B to smoke-test the whole pipeline with minimal memory
 
-# 先装 CUDA 版 PyTorch
-pip install --index-url https://download.pytorch.org/whl/cu121 torch==2.5.1 torchvision==0.20.1 torchaudio==2.5.1
+I’ve also added one-liners (as you asked), quick sanity checks, and fixes for the exact errors you hit (tokenizers build, gated repos, TF runtime, etc.).
 
-# 再装精简依赖（requirements.txt 不包含 tts/xformers/torch）
-pip install -r requirements.txt --upgrade
+---
 
-# 验证
-pip check
-python - << 'PY'
-import torch;print(torch.cuda.is_available(), torch.version.cuda, torch.__version__)
+# 0) Pick the right runtime (very important)
+
+* On your GPU platform, **choose a PyTorch runtime** (not TensorFlow).
+  In your logs, TF runtime caused `numpy dtype size changed…` and missing `torch` imports.
+* Make sure Python is **3.10–3.12** (avoid 3.13; it triggers `maturin`/Rust builds for `tokenizers`).
+
+```bash
+python3 -V
+# should show 3.10.x–3.12.x
+```
+
+---
+
+# 1) Create a clean virtualenv & activate
+
+```bash
+python3 -m venv .venv && source .venv/bin/activate && python -V
+```
+
+If `.venv/bin/activate` not found, you’re not in the project folder; `cd` into your repo first.
+
+---
+
+# 2) Upgrade pip toolchain
+
+```bash
+python -m pip install -U pip setuptools wheel
+```
+
+---
+
+# 3) Install PyTorch (GPU or CPU)
+
+**GPU (CUDA 12.1 wheels, A100 ok):**
+
+```bash
+pip install --extra-index-url https://download.pytorch.org/whl/cu121 "torch==2.5.1"
+```
+
+**CPU-only (works anywhere; slower):**
+
+```bash
+pip install "torch==2.5.1"
+```
+
+> Skip `torchvision` unless you need it; it caused version noise earlier.
+
+---
+
+# 4) Install the rest (versions that avoid build-from-source)
+
+```bash
+pip install "transformers==4.43.3" "tokenizers==0.19.1" "accelerate==0.31.0" "peft==0.11.1" "datasets>=2.19" "bitsandbytes>=0.43.1" "safetensors>=0.4.3" "sentencepiece>=0.1.99" "huggingface_hub>=0.24.6"
+```
+
+> `tokenizers==0.19.1` has prebuilt wheels for Py 3.10–3.12 (no Rust build).
+> On Windows + CPU only, **bitsandbytes** can fail—if so, just drop it and run CPU/TinyLlama.
+
+---
+
+# 5) Sanity check the environment
+
+```bash
+python - <<'PY'
+import torch, transformers, tokenizers, datasets, peft
+print("torch:", torch.__version__, "| CUDA:", torch.cuda.is_available(), "| BF16:", getattr(torch.cuda,"is_bf16_supported",lambda:False)())
+print("transformers:", transformers.__version__, "| tokenizers:", tokenizers.__version__)
+print("datasets:", datasets.__version__, "| peft:", peft.__version__)
+if torch.cuda.is_available(): print("GPU:", torch.cuda.get_device_name(0))
 PY
+```
 
-# 2) 从 .env 读取 Key（因为不用启动器就不会自动加载）
-$env:OPENAI_API_KEY = (Get-Content .\.env | Select-String '^OPENAI_API_KEY=' | % { ($_ -split '=',2)[1].Trim() })
+You should see `CUDA: True` on A100 and `BF16: True`.
 
-# 3) 一键跑完整流程
-python .\main.py all --week4-meta "C:\AI_Coop\Homework\Week4\rag_arxiv_cscl_week4\data\meta.jsonl"
+---
 
+# 6) Prepare data (make a tiny sample if you don’t have one)
 
-或者按步骤：
-python .\main.py enrich --week4-meta "C:\AI_Coop\Homework\Week4\rag_arxiv_cscl_week4\data\meta.jsonl"
-python .\main.py topup
-python .\main.py qas     或python .\main.py qas --per-paper 3，可以将3改为5等其他数值
-python .\main.py jsonl
-python .\main.py train
-python .\main.py eval
+This creates a **minimal** `data/synthetic_qa.jsonl` so you can run end-to-end immediately.
 
+```bash
+python - <<'PY'
+import os, json
+os.makedirs("data", exist_ok=True)
+sys_prompt = "You are a helpful academic Q&A assistant specialized in scholarly content."
+samples = [
+    ("What is QLoRA and why is it memory efficient?",
+     "QLoRA loads base weights in 4-bit NF4 and trains small LoRA adapters, so optimizer states/gradients only update the adapters, cutting VRAM."),
+    ("How should we answer when an abstract lacks specific values?",
+     "State that the paper/abstract does not specify the values and avoid fabricating numbers."),
+    ("Why enable BF16 on A100?",
+     "A100 supports BF16 natively with wider dynamic range than FP16, improving stability and throughput."),
+    ("What role do <|system|>, <|user|>, <|assistant|> play?",
+     "They define roles for instruction tuning: system sets behavior, user asks, assistant answers."),
+    ("What is an edge-case QA example?",
+     "A question based on a false premise where the correct answer is to correct or refuse the premise.")
+]
+with open("data/synthetic_qa.jsonl","w",encoding="utf-8") as f:
+    for q,a in samples:
+        text=f"<|system|>{sys_prompt}<|user|>{q}<|assistant|>{a}"
+        f.write(json.dumps({"text":text})+"\n")
+print("Wrote data/synthetic_qa.jsonl")
+PY
+```
 
-文件流（从输入到输出，一眼看懂）：
-Week4 meta.jsonl
-   │
-enrich  ──>  data/abstracts.json
-   │
-topup   ──>  data/topup_abstracts.json  ┐
-merge   ──>  data/abstracts_100.json    ┘（固定 100 篇）
-   │
-qas     ──>  data/papers_qas.json（每篇 ~5 组 Q&A）
-   │
-jsonl   ──>  data/synthetic_qa.jsonl（<|system|><|user|><|assistant|> 模板）
-   │
-train   ──>  llama3-7b-qlora-finetuned\（QLoRA 适配器/权重）
-   │
-eval    ──>  eval_raw_outputs.csv（基线 vs 微调 对比）
+---
+
+# 7) Training
+
+## Path A — **GPU / A100** (Zephyr-7B, 4-bit, BF16)
+
+This matches your earlier success path and avoids gated repos.
+
+```bash
+python train_qlora_hf.py --jsonl ./data/synthetic_qa.jsonl --model HuggingFaceH4/zephyr-7b-beta --out ./models/zephyr-7b-qlora --epochs 2 --batch 8 --grad_accum 2 --lr 2e-4 --bf16 --max_seq_len 4096
+```
+
+**If OOM** on 7B, use one or more:
+
+```bash
+# pick one or stack them
+python train_qlora_hf.py --jsonl ./data/synthetic_qa.jsonl --model HuggingFaceH4/zephyr-7b-beta --out ./models/zephyr-7b-qlora --epochs 2 --batch 4 --grad_accum 4 --lr 2e-4 --bf16 --max_seq_len 3072
+python train_qlora_hf.py --jsonl ./data/synthetic_qa.jsonl --model HuggingFaceH4/zephyr-7b-beta --out ./models/zephyr-7b-qlora --epochs 1 --batch 4 --grad_accum 4 --lr 2e-4 --bf16 --max_seq_len 2048
+```
+
+## Path B — **Laptop / Low-VRAM / CPU** (TinyLlama-1.1B)
+
+```bash
+python train_qlora_hf.py --jsonl ./data/synthetic_qa.jsonl --model TinyLlama/TinyLlama-1.1B-Chat-v1.0 --out ./models/tinyllama-qlora --epochs 1 --batch 4 --grad_accum 4 --lr 2e-4 --max_seq_len 2048
+```
+
+> Don’t pass `--bf16` on CPU. For very tight VRAM, keep 1–2 epochs just to validate the pipeline.
+
+---
+
+# 8) Evaluation (base vs fine-tuned)
+
+### If you trained **Zephyr-7B** (Path A), use the eval script as-is:
+
+```bash
+python eval_compare.py
+# outputs: outputs/evaluation.csv
+```
+
+### If you trained **TinyLlama** (Path B), temporarily point eval to TinyLlama:
+
+Edit the header variables in `eval_compare.py`:
+
+```python
+BASE = "TinyLlama/TinyLlama-1.1B-Chat-v1.0"
+FT_DIR = "./models/tinyllama-qlora"
+```
+
+Then run:
+
+```bash
+python eval_compare.py
+```
+
+Optional marking sheet:
+
+```bash
+python - <<'PY'
+import pandas as pd
+df = pd.read_csv("outputs/evaluation.csv"); df["winner"] = ""
+df.to_csv("outputs/evaluation_for_marking.csv", index=False)
+print("Wrote outputs/evaluation_for_marking.csv")
+PY
+```
+
+---
+
+# 9) Quick inference (single prompt, no UI)
+
+Create `quick_infer.py` (if you don’t already have it) and run it against your LoRA:
+
+```bash
+python quick_infer.py --base HuggingFaceH4/zephyr-7b-beta --lora ./models/zephyr-7b-qlora --prompt "Explain QLoRA in one sentence." --bf16
+```
+
+For TinyLlama:
+
+```bash
+python quick_infer.py --base TinyLlama/TinyLlama-1.1B-Chat-v1.0 --lora ./models/tinyllama-qlora --prompt "Explain QLoRA in one sentence."
+```
+
+---
+
+# 10) Gradio demo (memory-friendly UI)
+
+**Lowest VRAM** version (TinyLlama + quant + offload + cap VRAM):
+
+```bash
+python app.py --base TinyLlama/TinyLlama-1.1B-Chat-v1.0 --quant 4bit --max-gpu-mem 6GiB --offload
+```
+
+**Zephyr-7B** (needs more VRAM):
+
+```bash
+python app.py --base HuggingFaceH4/zephyr-7b-beta --quant 4bit --max-gpu-mem 18GiB --offload
+```
+
+If you want the UI to serve your **fine-tuned** LoRA, add:
+
+```bash
+--lora ./models/zephyr-7b-qlora
+# or
+--lora ./models/tinyllama-qlora
+```
+
+Want a public link for HR? add `--share`.
+
+---
+
+## Common errors you hit (and the fix)
+
+* **`Failed building wheel for tokenizers`** / Rust / `maturin`
+  → You were on Python **3.13**. Use Py **3.10–3.12** and `tokenizers==0.19.1` (prebuilt wheels).
+
+* **`numpy.dtype size changed…`** or TF import paths in stack trace
+  → You were in a **TensorFlow** runtime. Switch to **PyTorch** runtime and reinstall.
+
+* **`403 gated repo`** (e.g., Mistral-7B-Instruct v0.3)
+  → Use **open** models like `HuggingFaceH4/zephyr-7b-beta` or login/accept license first.
+
+* **Out-Of-Memory** during training
+  → Lower `--batch`; raise `--grad_accum`; reduce `--max_seq_len`; keep **4-bit**; enable gradient checkpointing (already on in the script); A100: use `--bf16`.
+
+* **Windows + bitsandbytes error**
+  → On Windows, bnb may fail—use CPU/TinyLlama or run the GPU part in WSL/Linux.
+
+---
+
+## One-shot “smoke test” script (copy-paste)
+
+This validates the full stack end-to-end on **TinyLlama** (fast, minimal memory):
+
+```bash
+python3 -m venv .venv && source .venv/bin/activate && python -m pip install -U pip setuptools wheel && pip install "torch==2.5.1" "transformers==4.43.3" "tokenizers==0.19.1" "accelerate==0.31.0" "peft==0.11.1" "datasets>=2.19" "safetensors>=0.4.3" "sentencepiece>=0.1.99" "huggingface_hub>=0.24.6" && python - <<'PY'
+import os, json
+os.makedirs("data", exist_ok=True)
+sys="You are a helpful academic Q&A assistant specialized in scholarly content."
+pairs=[("What is QLoRA?","It loads base weights in 4-bit and trains small LoRA adapters, reducing memory."),
+       ("How to respond if abstract lacks values?","Say the paper does not provide them; do not fabricate.")]
+with open("data/synthetic_qa.jsonl","w") as f:
+    for q,a in pairs: f.write(json.dumps({"text":f"<|system|>{sys}<|user|>{q}<|assistant|>{a}"})+"\n")
+print("Data ready.")
+PY
+python train_qlora_hf.py --jsonl ./data/synthetic_qa.jsonl --model TinyLlama/TinyLlama-1.1B-Chat-v1.0 --out ./models/tinyllama-qlora --epochs 1 --batch 4 --grad_accum 4 --lr 2e-4 --max_seq_len 1024 && python - <<'PY'
+import os, csv, torch
+from transformers import AutoTokenizer, AutoModelForCausalLM, BitsAndBytesConfig
+from peft import PeftModel
+BASE="TinyLlama/TinyLlama-1.1B-Chat-v1.0"; FT_DIR="./models/tinyllama-qlora"
+tok=AutoTokenizer.from_pretrained(BASE, use_fast=True, trust_remote_code=True)
+quant=BitsAndBytesConfig(load_in_4bit=True,bnb_4bit_use_double_quant=True,bnb_4bit_quant_type="nf4",bnb_4bit_compute_dtype=torch.bfloat16 if torch.cuda.is_available() else torch.float32)
+m=AutoModelForCausalLM.from_pretrained(BASE, device_map="auto", trust_remote_code=True, quantization_config=quant)
+m=PeftModel.from_pretrained(m,FT_DIR)
+def ask(q):
+    s="You are a helpful academic Q&A assistant specialized in scholarly content."
+    p=f"<|system|>{s}<|user|>{q}<|assistant|>"
+    ids=tok(p, return_tensors="pt").to(m.device)
+    out=m.generate(**ids, max_new_tokens=120, do_sample=False, pad_token_id=tok.eos_token_id, eos_token_id=tok.eos_token_id)
+    ans=tok.decode(out[0], skip_special_tokens=True).split("<|assistant|>")[-1].strip()
+    print("Q:", q); print("A:", ans); print("-"*50)
+ask("Explain QLoRA briefly.")
+PY
+```
+
+If that succeeds, switch back to **Path A** to train Zephyr-7B on the A100.
+
+---
