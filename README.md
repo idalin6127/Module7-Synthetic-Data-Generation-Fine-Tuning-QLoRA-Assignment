@@ -1,6 +1,7 @@
 <p align="center">
-  <img src="assets/logo.svg" alt="Project Logo" width="120" />
+  <img src="logo/logo.svg" alt="Project Logo" width="120" />
 </p>
+
 
 # Week 7 — Synthetic Data Generation & QLoRA Fine-Tuning (Academic Q\&A)
 
