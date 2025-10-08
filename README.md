@@ -1,6 +1,7 @@
 <p align="left">
   <img src="logo/logo.png" alt="Project Logo" width="330" />
 </p>
+
 # Module 7 — Synthetic Data Generation & QLoRA Fine-Tuning (Academic Q\&A)
 
 ## Quick Summary
