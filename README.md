@@ -1,8 +1,6 @@
-<p align="center">
+<p align="left">
   <img src="logo/logo.png" alt="Project Logo" width="330" />
 </p>
-
-
 # Week 7 — Synthetic Data Generation & QLoRA Fine-Tuning (Academic Q\&A)
 
 ## Quick Summary
